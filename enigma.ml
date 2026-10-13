@@ -96,4 +96,4 @@ let cipher config s =
   s |> String.to_seq |> List.of_seq |> cipher_chars config |> List.to_seq
   |> String.of_seq
 
-let hours_worked = 0
+let hours_worked = 7
