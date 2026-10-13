@@ -281,6 +281,46 @@ let cipher_tests =
     decipher_test "deciphering HELLO from KDO recovers it" machine_KDO "HELLO";
   ]
 
+let qwerty_rotor = { wiring = "QWERTYUIOPASDFGHJKLZXCVBNM"; turnover = 'C' }
+
+let full_plugboard =
+  List.init 13 (fun i ->
+      (Char.chr (Char.code 'A' + (2 * i)), Char.chr (Char.code 'B' + (2 * i))))
+
+let long_text =
+  List.init 30 (fun _ -> "THEQUICKBROWNFOXJUMPSOVERTHELAZYDOG")
+  |> String.concat ""
+
+let machine_MCK_full = make_config refl_B historical_I_II_III "MCK" full_plugboard
+
+let whole_machine_tests =
+  [
+    cipher_test "single rotor wraps from Z while enciphering" (make_config refl_B [ historical_I ] "Z" []) "ABC" "HOH";
+    cipher_test "four rotors including a non-historical one" (make_config refl_B [ historical_I; qwerty_rotor; historical_II; historical_III ] "ABEU" []) "ENIGMA" "DOMBOK";
+    cipher_test "non-historical turnover C steps the left rotor" (make_config refl_C [ qwerty_rotor; qwerty_rotor ] "AB" []) "CCCC" "LLJF";
+    cipher_test "full plugboard with all 13 cables" machine_MCK_full "FUNCTIONAL" "RPGDMCBBLR";
+    cipher_test "rotors II III I at XYZ, reflector C, plugboard AZ XY" (make_config refl_C [ historical_II; historical_III; historical_I ] "XYZ" plugs_az_xy) "PROGRAMMING" "GYQQMXSCQOJ";
+    decipher_test "deciphering a long message recovers it" machine_MCK_full long_text;
+    ( "no letter ever enciphers to itself" >:: fun _ ->
+      let ciphertext = cipher machine_MCK_full long_text in
+      String.iteri
+        (fun i c ->
+          assert_bool
+            (Printf.sprintf "letter %d enciphered to itself" i)
+            (c <> long_text.[i]))
+        ciphertext );
+    ( "order of plugboard pairs does not change the ciphertext" >:: fun _ ->
+      let with_plugs plugs =
+        cipher (make_config refl_B historical_I_II_III "KDO" plugs) long_text
+      in
+      assert_equal (with_plugs plugs_az_xy) (with_plugs plugs_yx_za)
+        ~printer:Fun.id );
+    ( "cipher of one letter is cipher_char after one step" >:: fun _ ->
+      assert_equal
+        (String.make 1 (cipher_char (step machine_KDO) 'H'))
+        (cipher machine_KDO "H") ~printer:Fun.id );
+  ]
+
 let suite =
   "Enigma test suite"
   >::: List.flatten
@@ -295,5 +335,6 @@ let suite =
            step_rule_2_tests;
            step_rule_3_tests;
            cipher_tests;
+           whole_machine_tests;
          ]
 let () = run_test_tt_main suite
