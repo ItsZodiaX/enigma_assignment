@@ -34,8 +34,12 @@ let map_l_to_r wiring top_letter input_pos =
 
 let map_refl wiring input_pos = map_r_to_l wiring 'A' input_pos
 
-let map_plug _plugs _c =
-  failwith "Unimplemented"
+let rec map_plug plugs c =
+  match plugs with
+  | [] -> c
+  | (a, b) :: _ when c = a -> b
+  | (a, b) :: _ when c = b -> a
+  | _ :: rest -> map_plug rest c
 
 let cipher_char _config _c =
   failwith "Unimplemented"

@@ -104,6 +104,38 @@ let map_refl_tests =
     symmetry_test "reflector C is symmetric" refl_C;
   ]
 
-let suite = "Enigma test suite"
-  >::: List.flatten [ index_tests; map_r_to_l_tests; map_l_to_r_tests; map_refl_tests ]
+let map_plug_test name plugs input expected =
+  name >:: fun _ ->
+    assert_equal expected (map_plug plugs input) ~printer:(String.make 1)
+
+let plugs_az = [ ('A', 'Z') ]
+let plugs_az_xy = [ ('A', 'Z'); ('X', 'Y') ]
+let plugs_yx_za = [ ('Y', 'X'); ('Z', 'A') ]
+
+let map_plug_tests =
+  [
+    map_plug_test "empty plugboard leaves M unchanged" [] 'M' 'M';
+    map_plug_test "empty plugboard leaves A unchanged" [] 'A' 'A';
+    map_plug_test "plugboard AZ maps A to Z" plugs_az 'A' 'Z';
+    map_plug_test "plugboard AZ maps Z to A" plugs_az 'Z' 'A';
+    map_plug_test "plugboard AZ leaves B unchanged" plugs_az 'B' 'B';
+    map_plug_test "plugboard AZ XY maps A to Z" plugs_az_xy 'A' 'Z';
+    map_plug_test "plugboard AZ XY maps Z to A" plugs_az_xy 'Z' 'A';
+    map_plug_test "plugboard AZ XY maps X to Y" plugs_az_xy 'X' 'Y';
+    map_plug_test "plugboard AZ XY maps Y to X" plugs_az_xy 'Y' 'X';
+    map_plug_test "plugboard AZ XY leaves M unchanged" plugs_az_xy 'M' 'M';
+    map_plug_test "reordered plugboard YX ZA maps A to Z" plugs_yx_za 'A' 'Z';
+    map_plug_test "reordered plugboard YX ZA maps X to Y" plugs_yx_za 'X' 'Y';
+  ]
+
+let suite =
+  "Enigma test suite"
+  >::: List.flatten
+         [
+           index_tests;
+           map_r_to_l_tests;
+           map_l_to_r_tests;
+           map_refl_tests;
+           map_plug_tests;
+         ]
 let () = run_test_tt_main suite
