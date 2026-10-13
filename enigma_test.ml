@@ -75,6 +75,35 @@ let map_l_to_r_tests =
     round_trip_test "rotor III l_to_r undoes r_to_l" rotor_III;
   ]
 
+let refl_B = "YRUHQSLDPXNGOKMIEBFZCWVJAT"
+let refl_C = "FVPJIAOYEDRZXWGCTKUQSBNMHL"
+
+let map_refl_test name wiring input expected =
+  name >:: fun _ ->
+    assert_equal expected (map_refl wiring input) ~printer:string_of_int
+
+let symmetry_test name wiring =
+  name >:: fun _ ->
+    List.iter
+      (fun pos ->
+        assert_equal pos
+          (map_refl wiring (map_refl wiring pos))
+          ~printer:string_of_int)
+      all_positions
+
+let map_refl_tests =
+  [
+    map_refl_test "identity reflector maps 0 to 0" identity 0 0;
+    map_refl_test "identity reflector maps 1 to 1" identity 1 1;
+    map_refl_test "identity reflector maps 25 to 25" identity 25 25;
+    map_refl_test "reflector B maps 0 to 24" refl_B 0 24;
+    map_refl_test "reflector B maps 24 to 0" refl_B 24 0;
+    map_refl_test "reflector B maps 1 to 17" refl_B 1 17;
+    map_refl_test "reflector C maps 0 to 5" refl_C 0 5;
+    symmetry_test "reflector B is symmetric" refl_B;
+    symmetry_test "reflector C is symmetric" refl_C;
+  ]
+
 let suite = "Enigma test suite"
-  >::: List.flatten [ index_tests; map_r_to_l_tests; map_l_to_r_tests ]
+  >::: List.flatten [ index_tests; map_r_to_l_tests; map_l_to_r_tests; map_refl_tests ]
 let () = run_test_tt_main suite
