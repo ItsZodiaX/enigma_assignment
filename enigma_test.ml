@@ -179,6 +179,83 @@ let cipher_char_tests =
     cipher_char_test "rotors III II I at KDO, reflector C, plugboard AZ XY" (make_config refl_C [ historical_III; historical_II; historical_I ] "KDO" plugs_az_xy) 'H' 'R';
   ]
 
+let historical_III_II_I = [ historical_III; historical_II; historical_I ]
+
+let top_letters config =
+  config.rotors
+  |> List.map (fun { top_letter; _ } -> String.make 1 top_letter)
+  |> String.concat ""
+
+let step_test name rotors before after =
+  name >:: fun _ ->
+    assert_equal after
+      (make_config refl_B rotors before [] |> step |> top_letters)
+      ~printer:Fun.id
+
+(* Rule 1: the rightmost rotor always steps once before each character. *)
+let step_rule_1_tests =
+  [
+    step_test "rightmost rotor steps every character" historical_III_II_I "AAA" "AAB";
+    step_test "rightmost rotor wraps from Z to A" historical_III_II_I "AAZ" "AAA";
+    step_test "single rotor steps from A to B" [ historical_I ] "A" "B";
+    step_test "single rotor wraps from Z to A" [ historical_I ] "Z" "A";
+    step_test "stepping KDO gives KDP" historical_III_II_I "KDO" "KDP";
+    step_test "machine with no rotors is unchanged" [] "" "";
+    ( "step keeps the reflector, plugboard and rotor wirings" >:: fun _ ->
+      let config =
+        make_config refl_C historical_III_II_I "KDO" plugs_az_xy
+      in
+      let stepped = step config in
+      assert_equal config.refl stepped.refl;
+      assert_equal config.plugboard stepped.plugboard;
+      assert_equal
+        (List.map (fun { rotor; _ } -> rotor) config.rotors)
+        (List.map (fun { rotor; _ } -> rotor) stepped.rotors) );
+  ]
+
+let step_sequence_test name rotors expected =
+  name >:: fun _ ->
+    match expected with
+    | [] -> failwith "step_sequence_test requires a starting position"
+    | start :: _ ->
+        let rec steps config n =
+          if n = 0 then []
+          else
+            let config = step config in
+            top_letters config :: steps config (n - 1)
+        in
+        let config = make_config refl_B rotors start [] in
+        assert_equal expected
+          (start :: steps config (List.length expected - 1))
+          ~printer:(String.concat " ")
+
+(* Rule 2: a rotor other than the leftmost that shows its own turnover
+   letter steps, and so does the rotor immediately to its left. *)
+let step_rule_2_tests =
+  [
+    step_test "rightmost at turnover KDQ steps middle to KER" historical_III_II_I "KDQ" "KER";
+    step_test "middle at turnover KER steps itself and left to LFS" historical_III_II_I "KER" "LFS";
+    step_test "after the double step LFS gives LFT" historical_III_II_I "LFS" "LFT";
+    step_test "rightmost at turnover VDQ steps middle to VER" historical_III_II_I "VDQ" "VER";
+    step_test "middle at turnover VER steps itself and left to WFS" historical_III_II_I "VER" "WFS";
+    step_test "middle at turnover alone AEA steps to BFB" historical_III_II_I "AEA" "BFB";
+    step_test "leftmost at its turnover VAA does not step" historical_III_II_I "VAA" "VAB";
+    step_test "two rotors, rightmost at turnover AQ gives BR" [ historical_II; historical_I ] "AQ" "BR";
+    step_test "two rotors, leftmost at turnover EA gives EB" [ historical_II; historical_I ] "EA" "EB";
+    step_sequence_test "stepping sequence from KDO" historical_III_II_I [ "KDO"; "KDP"; "KDQ"; "KER"; "LFS"; "LFT"; "LFU" ];
+    step_sequence_test "stepping sequence from VDP" historical_III_II_I [ "VDP"; "VDQ"; "VER"; "WFS"; "WFT" ];
+  ]
+
+(* Rule 3: no rotor steps more than once per character, even when several
+   rules apply to it. *)
+let step_rule_3_tests =
+  [
+    step_test "middle at turnover and pushed by right steps once to BFR" historical_III_II_I "AEQ" "BFR";
+    step_test "single rotor at its turnover steps once" [ historical_I ] "Q" "R";
+    step_test "two rotors both at turnover EQ give FR" [ historical_II; historical_I ] "EQ" "FR";
+    step_test "four rotors all pushed step once each to BWFR" [ historical_I; historical_III; historical_II; historical_I ] "AVEQ" "BWFR";
+  ]
+
 let suite =
   "Enigma test suite"
   >::: List.flatten
@@ -189,5 +266,8 @@ let suite =
            map_refl_tests;
            map_plug_tests;
            cipher_char_tests;
+           step_rule_1_tests;
+           step_rule_2_tests;
+           step_rule_3_tests;
          ]
 let () = run_test_tt_main suite
