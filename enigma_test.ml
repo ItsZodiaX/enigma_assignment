@@ -14,5 +14,67 @@ let index_tests =
     index_test "index of Y is 24" 'Y' 24;
   ]
 
-let suite = "Enigma test suite" >::: List.flatten [ index_tests ]
+let identity = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+let swap_ab = "BACDEFGHIJKLMNOPQRSTUVWXYZ"
+
+let rotor_I = "EKMFLGDQVZNTOWYHXUSPAIBRCJ"
+let rotor_III = "BDFHJLCPRTXVZNYEIWGAKMUSQO"
+
+let map_r_to_l_test name wiring top_letter input expected =
+  name >:: fun _ ->
+    assert_equal expected
+      (map_r_to_l wiring top_letter input)
+      ~printer:string_of_int
+
+let map_r_to_l_tests =
+  [
+    map_r_to_l_test "identity wiring at A maps 0 to 0" identity 'A' 0 0;
+    map_r_to_l_test "identity wiring at A maps 25 to 25" identity 'A' 25 25;
+    map_r_to_l_test "identity wiring at M maps 7 to 7" identity 'M' 7 7;
+    map_r_to_l_test "swap AB at A maps 0 to 1" swap_ab 'A' 0 1;
+    map_r_to_l_test "swap AB at A maps 1 to 0" swap_ab 'A' 1 0;
+    map_r_to_l_test "swap AB at B maps 0 to 25" swap_ab 'B' 0 25;
+    map_r_to_l_test "swap AB at B maps 25 to 0" swap_ab 'B' 25 0;
+    map_r_to_l_test "swap AB at C maps 24 to 25" swap_ab 'C' 24 25;
+    map_r_to_l_test "rotor I at A maps 0 to 4" rotor_I 'A' 0 4;
+    map_r_to_l_test "rotor I at B maps 0 to 9" rotor_I 'B' 0 9;
+    map_r_to_l_test "rotor III at O maps 14 to 17" rotor_III 'O' 14 17;
+  ]
+
+let map_l_to_r_test name wiring top_letter input expected =
+  name >:: fun _ ->
+    assert_equal expected
+      (map_l_to_r wiring top_letter input)
+      ~printer:string_of_int
+
+let all_positions = List.init 26 Fun.id
+let all_letters = List.init 26 (fun i -> Char.chr (i + Char.code 'A'))
+
+let round_trip_test name wiring =
+  name >:: fun _ ->
+    List.iter
+      (fun top_letter ->
+        List.iter
+          (fun pos ->
+            assert_equal pos
+              (map_l_to_r wiring top_letter (map_r_to_l wiring top_letter pos))
+              ~printer:string_of_int)
+          all_positions)
+      all_letters
+
+let map_l_to_r_tests =
+  [
+    map_l_to_r_test "identity wiring at A maps 0 to 0" identity 'A' 0 0;
+    map_l_to_r_test "identity wiring at M maps 7 to 7" identity 'M' 7 7;
+    map_l_to_r_test "swap AB at A maps 0 to 1" swap_ab 'A' 0 1;
+    map_l_to_r_test "swap AB at B maps 0 to 25" swap_ab 'B' 0 25;
+    map_l_to_r_test "swap AB at C maps 25 to 24" swap_ab 'C' 25 24;
+    map_l_to_r_test "rotor I at A maps 0 to 20" rotor_I 'A' 0 20;
+    map_l_to_r_test "rotor I at F maps 10 to 14" rotor_I 'F' 10 14;
+    round_trip_test "rotor I l_to_r undoes r_to_l" rotor_I;
+    round_trip_test "rotor III l_to_r undoes r_to_l" rotor_III;
+  ]
+
+let suite = "Enigma test suite"
+  >::: List.flatten [ index_tests; map_r_to_l_tests; map_l_to_r_tests ]
 let () = run_test_tt_main suite
