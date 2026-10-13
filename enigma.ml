@@ -41,8 +41,27 @@ let rec map_plug plugs c =
   | (a, b) :: _ when c = b -> a
   | _ :: rest -> map_plug rest c
 
-let cipher_char _config _c =
-  failwith "Unimplemented"
+let rec map_rotors_r_to_l rotors input_pos =
+  match rotors with
+  | [] -> input_pos
+  | { rotor; top_letter } :: rest ->
+      map_rotors_r_to_l rest input_pos |> map_r_to_l rotor.wiring top_letter
+
+let rec map_rotors_l_to_r rotors input_pos =
+  match rotors with
+  | [] -> input_pos
+  | { rotor; top_letter } :: rest ->
+      map_l_to_r rotor.wiring top_letter input_pos |> map_rotors_l_to_r rest
+
+let cipher_char config c =
+  c
+  |> map_plug config.plugboard
+  |> index
+  |> map_rotors_r_to_l config.rotors
+  |> map_refl config.refl
+  |> map_rotors_l_to_r config.rotors
+  |> letter
+  |> map_plug config.plugboard
 
 let step _config =
   failwith "Unimplemented"

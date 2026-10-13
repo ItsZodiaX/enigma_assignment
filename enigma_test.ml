@@ -18,6 +18,7 @@ let identity = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 let swap_ab = "BACDEFGHIJKLMNOPQRSTUVWXYZ"
 
 let rotor_I = "EKMFLGDQVZNTOWYHXUSPAIBRCJ"
+let rotor_II = "AJDKSIRUXBLHWTMCQGZNPYFVOE"
 let rotor_III = "BDFHJLCPRTXVZNYEIWGAKMUSQO"
 
 let map_r_to_l_test name wiring top_letter input expected =
@@ -128,6 +129,56 @@ let map_plug_tests =
     map_plug_test "reordered plugboard YX ZA maps X to Y" plugs_yx_za 'X' 'Y';
   ]
 
+let historical_I = { wiring = rotor_I; turnover = 'Q' }
+let historical_II = { wiring = rotor_II; turnover = 'E' }
+let historical_III = { wiring = rotor_III; turnover = 'V' }
+let historical_I_II_III = [ historical_I; historical_II; historical_III ]
+
+let make_config refl rotors top_letters plugboard =
+  {
+    refl;
+    rotors =
+      List.mapi
+        (fun i rotor -> { rotor; top_letter = top_letters.[i] })
+        rotors;
+    plugboard;
+  }
+
+let cipher_char_test name config input expected =
+  name >:: fun _ ->
+    assert_equal expected (cipher_char config input) ~printer:(String.make 1)
+
+let alphabet = identity
+let cipher_alphabet_test name config expected =
+  name >:: fun _ ->
+    assert_equal expected
+      (String.map (cipher_char config) alphabet)
+      ~printer:Fun.id
+
+let identity_machine = make_config identity [] "" []
+let machine_AAA = make_config refl_B historical_I_II_III "AAA" []
+let machine_AAA_az = make_config refl_B historical_I_II_III "AAA" plugs_az
+
+let cipher_char_tests =
+  [
+    cipher_char_test "identity machine maps A to A" identity_machine 'A' 'A';
+    cipher_char_test "identity machine maps Z to Z" identity_machine 'Z' 'Z';
+    cipher_alphabet_test "identity machine maps every letter to itself" identity_machine alphabet;
+    cipher_char_test "reflector B alone maps A to Y" (make_config refl_B [] "" []) 'A' 'Y';
+    cipher_char_test "reflector B with plugboard AB maps A to R" (make_config refl_B [] "" [ ('A', 'B') ]) 'A' 'R';
+    cipher_char_test "single rotor I at A maps A to H" (make_config refl_B [ historical_I ] "A" []) 'A' 'H';
+    cipher_char_test "single rotor I at B maps A to N" (make_config refl_B [ historical_I ] "B" []) 'A' 'N';
+    cipher_char_test "rotors I II III at AAA map G to P" machine_AAA 'G' 'P';
+    cipher_char_test "rotors I II III at AAA map P to G" machine_AAA 'P' 'G';
+    cipher_char_test "rotors I II III at AAA map A to U" machine_AAA 'A' 'U';
+    cipher_char_test "rotors I II III at AAA map Z to H" machine_AAA 'Z' 'H';
+    cipher_alphabet_test "rotors I II III at AAA full mapping" machine_AAA "UEJOBTPZWCNSRKDGVMLFAQIYXH";
+    cipher_char_test "plugboard AZ at AAA maps A to H" machine_AAA_az 'A' 'H';
+    cipher_char_test "plugboard AZ at AAA maps U to Z" machine_AAA_az 'U' 'Z';
+    cipher_alphabet_test "plugboard AZ at AAA full mapping" machine_AAA_az "HEJOBTPAWCNSRKDGVMLFZQIYXU";
+    cipher_char_test "rotors III II I at KDO, reflector C, plugboard AZ XY" (make_config refl_C [ historical_III; historical_II; historical_I ] "KDO" plugs_az_xy) 'H' 'R';
+  ]
+
 let suite =
   "Enigma test suite"
   >::: List.flatten
@@ -137,5 +188,6 @@ let suite =
            map_l_to_r_tests;
            map_refl_tests;
            map_plug_tests;
+           cipher_char_tests;
          ]
 let () = run_test_tt_main suite
