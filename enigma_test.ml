@@ -256,6 +256,31 @@ let step_rule_3_tests =
     step_test "four rotors all pushed step once each to BWFR" [ historical_I; historical_III; historical_II; historical_I ] "AVEQ" "BWFR";
   ]
 
+let cipher_test name config input expected =
+  name >:: fun _ -> assert_equal expected (cipher config input) ~printer:Fun.id
+
+let decipher_test name config plaintext =
+  name >:: fun _ ->
+    assert_equal plaintext
+      (plaintext |> cipher config |> cipher config)
+      ~printer:Fun.id
+
+let machine_FUN_az = make_config refl_B historical_I_II_III "FUN" plugs_az
+let machine_KDO = make_config refl_C historical_III_II_I "KDO" plugs_az_xy
+
+let cipher_tests =
+  [
+    cipher_test "empty string enciphers to empty string" machine_AAA "" "";
+    cipher_test "cipher steps before enciphering G at AAA" machine_AAA "G" "X";
+    cipher_test "AAAAA at AAA enciphers to BDZGO" machine_AAA "AAAAA" "BDZGO";
+    cipher_test "YNGXQ at FUN with plugboard AZ is OCAML" machine_FUN_az "YNGXQ" "OCAML";
+    cipher_test "OCAML at FUN with plugboard AZ is YNGXQ" machine_FUN_az "OCAML" "YNGXQ";
+    cipher_test "machine with no rotors enciphers ABC to YRU" (make_config refl_B [] "" [])"ABC" "YRU";
+    cipher_test "HELLOWORLD from KDO through a double step" machine_KDO "HELLOWORLD" "RAFFYYYNZY";
+    decipher_test "deciphering HELLO at FUN recovers it" machine_FUN_az "HELLO";
+    decipher_test "deciphering HELLO from KDO recovers it" machine_KDO "HELLO";
+  ]
+
 let suite =
   "Enigma test suite"
   >::: List.flatten
@@ -269,5 +294,6 @@ let suite =
            step_rule_1_tests;
            step_rule_2_tests;
            step_rule_3_tests;
+           cipher_tests;
          ]
 let () = run_test_tt_main suite
